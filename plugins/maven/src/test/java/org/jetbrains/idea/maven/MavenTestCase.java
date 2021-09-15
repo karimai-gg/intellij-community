@@ -1,4 +1,4 @@
-// Copyright 2000-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+// Copyright 2000-2021 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package org.jetbrains.idea.maven;
 
 import com.intellij.execution.wsl.WSLDistribution;
@@ -35,6 +35,8 @@ import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.idea.maven.indices.MavenIndicesManager;
 import org.jetbrains.idea.maven.project.*;
+import org.jetbrains.idea.maven.server.MavenServerConnector;
+import org.jetbrains.idea.maven.server.MavenServerConnectorImpl;
 import org.jetbrains.idea.maven.server.MavenServerManager;
 import org.jetbrains.idea.maven.utils.MavenProgressIndicator;
 
@@ -160,6 +162,13 @@ public abstract class MavenTestCase extends UsefulTestCase {
   protected void tearDown() throws Exception {
     String basePath = myProject.getBasePath();
     new RunAll(
+      () -> {
+        MavenProgressIndicator.MavenProgressTracker mavenProgressTracker =
+          myProject.getServiceIfCreated(MavenProgressIndicator.MavenProgressTracker.class);
+        if (mavenProgressTracker != null) {
+          mavenProgressTracker.assertProgressTasksCompleted();
+        }
+      },
       () -> MavenServerManager.getInstance().shutdown(true),
       () -> checkAllMavenConnectorsDisposed(),
       () -> MavenArtifactDownloader.awaitQuiescence(100, TimeUnit.SECONDS),
@@ -613,6 +622,22 @@ public abstract class MavenTestCase extends UsefulTestCase {
     boolean result = getTestMavenHome() != null;
     if (!result) printIgnoredMessage("Maven installation not found");
     return result;
+  }
+
+  protected static MavenServerConnector ensureConnected(MavenServerConnector connector) {
+    assertTrue("Connector is Dummy!", connector instanceof MavenServerConnectorImpl);
+    long timeout = TimeUnit.SECONDS.toMillis(10);
+    long start = System.currentTimeMillis();
+    while (connector.getState() == MavenServerConnectorImpl.State.STARTING) {
+      if (System.currentTimeMillis() > start + timeout) {
+        throw new RuntimeException("Server connector not connected in 10 seconds");
+      }
+      EdtTestUtil.runInEdtAndWait(() -> {
+        PlatformTestUtil.dispatchAllEventsInIdeEventQueue();
+      });
+    }
+    assertTrue(connector.checkConnected());
+    return connector;
   }
 
   private void printIgnoredMessage(String message) {

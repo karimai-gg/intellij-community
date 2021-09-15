@@ -8,8 +8,6 @@ import com.intellij.openapi.util.io.win32.FileInfo;
 import com.intellij.openapi.util.io.win32.IdeaWin32;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.CharsetToolkit;
-import com.intellij.util.ArrayUtil;
-import com.intellij.util.ObjectUtils;
 import com.intellij.util.SystemProperties;
 import com.intellij.util.containers.LimitedPool;
 import com.intellij.util.system.CpuArch;
@@ -54,8 +52,7 @@ public final class FileSystemUtil {
 
   private static final Mediator ourMediator = computeMediator();
 
-  @NotNull
-  static Mediator computeMediator() {
+  static @NotNull Mediator computeMediator() {
     if (!Boolean.getBoolean(FORCE_USE_NIO2_KEY)) {
       try {
         if (SystemInfo.isWindows && IdeaWin32.isAvailable()) {
@@ -73,8 +70,7 @@ public final class FileSystemUtil {
     return new Nio2MediatorImpl();
   }
 
-  @NotNull
-  private static Mediator check(@NotNull Mediator mediator) throws Exception {
+  private static Mediator check(Mediator mediator) throws Exception {
     String quickTestPath = SystemInfo.isWindows ? "C:\\" : "/";
     mediator.getAttributes(quickTestPath);
     return mediator;
@@ -152,8 +148,7 @@ public final class FileSystemUtil {
   }
 
   /**
-   * Gives the second file permissions of the first one if possible; returns true if succeed.
-   * Will do nothing on Windows.
+   * Gives the second file permissions of the first one if possible; returns {@code true} on success; no-op on Windows.
    */
   public static boolean clonePermissions(@NotNull String source, @NotNull String target) {
     try {
@@ -166,8 +161,7 @@ public final class FileSystemUtil {
   }
 
   /**
-   * Gives the second file permissions to execute of the first one if possible; returns true if succeed.
-   * Will do nothing on Windows.
+   * Gives the second file permissions of the first one if possible; returns {@code true} on success; no-op on Windows.
    */
   public static boolean clonePermissionsToExecute(@NotNull String source, @NotNull String target) {
     try {
@@ -470,16 +464,17 @@ public final class FileSystemUtil {
     // try to query this path by different-case strings and deduce case sensitivity from the answers
     if (!anyChild.exists()) {
       if (LOG.isDebugEnabled()) {
-        LOG.debug("readParentCaseSensitivityByJavaIO("+anyChild+") fallback returned UNKNOWN because the child doesn't exist");
+        LOG.debug("readParentCaseSensitivityByJavaIO(" + anyChild + "): does not exist");
       }
       return FileAttributes.CaseSensitivity.UNKNOWN;
     }
+
     File parent = anyChild.getParentFile();
     if (parent == null) {
       String probe = findCaseToggleableChild(anyChild);
       if (probe == null) {
         if (LOG.isDebugEnabled()) {
-          LOG.debug("readParentCaseSensitivityByJavaIO("+anyChild+") fallback returned UNKNOWN because parent is null and toggleable child wasn't found. isDirectory="+anyChild.isDirectory());
+          LOG.debug("readParentCaseSensitivityByJavaIO(" + anyChild + "): no toggleable child, parent=null isDirectory=" + anyChild.isDirectory());
         }
         return FileAttributes.CaseSensitivity.UNKNOWN;
       }
@@ -494,18 +489,20 @@ public final class FileSystemUtil {
       name = findCaseToggleableChild(parent);
       if (name == null) {
         if (LOG.isDebugEnabled()) {
-          String[] list;
+          String[] list = null;
           try {
             list = parent.list();
           }
-          catch (Exception e) {
-            list = null;
+          catch (Exception ignored) { }
+          if (list == null) {
+            LOG.debug("readParentCaseSensitivityByJavaIO(" + anyChild + "): parent.list() failed");
           }
-          int count = list==null?0:list.length;
-          LOG.debug("readParentCaseSensitivityByJavaIO(" + anyChild + ") fallback returned UNKNOWN because toggleable child wasn't found among " + count +" children:\n "+StringUtil.first(StringUtil.join(
-                      ObjectUtils.notNull(list, ArrayUtil.EMPTY_STRING_ARRAY), ", "), 200, true));
+          else {
+            LOG.debug("readParentCaseSensitivityByJavaIO(" + anyChild + "): no toggleable child among " + list.length + " siblings");
+            if (LOG.isTraceEnabled()) LOG.trace("readParentCaseSensitivityByJavaIO(" + anyChild + "): " + Arrays.toString(list));
+          }
         }
-        // we can't find any file with toggleable case.
+        // we can't find any file with a case-toggleable name
         return FileAttributes.CaseSensitivity.UNKNOWN;
       }
       altName = toggleCase(name);
@@ -519,7 +516,7 @@ public final class FileSystemUtil {
         // couldn't file this file by other-cased name, so deduce FS is sensitive
         return FileAttributes.CaseSensitivity.SENSITIVE;
       }
-      // if changed-case file found, there is a slim chance that the FS is still case-sensitive but there are two files with different case
+      // if changed-case file is found, there is a slim chance that the FS is still case-sensitive, but there are two files with different case
       File altCanonicalFile = new File(altPath).getCanonicalFile();
       String altCanonicalName = altCanonicalFile.getName();
       if (altCanonicalName.equals(name) || altCanonicalName.equals(anyChild.getCanonicalFile().getName())) {
@@ -528,11 +525,11 @@ public final class FileSystemUtil {
       }
     }
     catch (IOException e) {
-      LOG.debug("readParentCaseSensitivityByJavaIO(" + anyChild + ") fallback returned UNKNOWN because of IOException", e);
+      LOG.debug("readParentCaseSensitivityByJavaIO(" + anyChild + ")", e);
       return FileAttributes.CaseSensitivity.UNKNOWN;
     }
 
-    // it's the different file indeed, what a bad luck
+    // it's a different file indeed; tough luck
     return FileAttributes.CaseSensitivity.SENSITIVE;
   }
 
@@ -554,7 +551,7 @@ public final class FileSystemUtil {
     return detected;
   }
 
-  private static @NotNull String toggleCase(@NotNull String name) {
+  private static String toggleCase(String name) {
     String altName = name.toUpperCase(Locale.getDefault());
     if (altName.equals(name)) altName = name.toLowerCase(Locale.getDefault());
     return altName;
@@ -579,8 +576,7 @@ public final class FileSystemUtil {
         }
       }
     }
-    catch (Exception ignored) {
-    }
+    catch (Exception ignored) { }
     return null;
   }
 

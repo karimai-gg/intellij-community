@@ -166,6 +166,11 @@ class BuildOptions {
 
   String logPath = System.getProperty("intellij.build.log.root")
 
+  /**
+   * If {@code true} write a separate compilation.log for all compilation messages
+   */
+  Boolean compilationLogEnabled = SystemProperties.getBooleanProperty("intellij.build.compilation.log.enabled", true)
+
   static final String CLEAN_OUTPUT_FOLDER_PROPERTY = "intellij.build.clean.output.root"
   boolean cleanOutputFolder = SystemProperties.getBooleanProperty(CLEAN_OUTPUT_FOLDER_PROPERTY, true)
 
@@ -238,14 +243,6 @@ class BuildOptions {
    */
   static final String VALIDATE_MODULES_STRUCTURE = "intellij.build.module.structure"
   boolean validateModuleStructure = System.getProperty(VALIDATE_MODULES_STRUCTURE, "false").toBoolean()
-
-  /**
-   * Path to prebuilt Kotlin plugin (not zipped).
-   * Currently fully-fledged Kotlin plugin distribution is being on TeamCity only via kombo.gant script.
-   * If this path is not specified then distribution without LLDB debugger is going to be built locally (for tests only).
-   */
-  static final String PREBUILT_KOTLIN_PLUGIN_PATH = "intellij.build.kotlin.plugin.path"
-  String prebuiltKotlinPluginPath = System.getProperty(PREBUILT_KOTLIN_PLUGIN_PATH)
 
   static final String TARGET_OS = "intellij.build.target.os"
 

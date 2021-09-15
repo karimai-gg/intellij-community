@@ -70,7 +70,7 @@ fun createNormalFunctionInsertHandler(
     val lazyHandlers = mutableMapOf<String, Lazy<DeclarativeInsertHandler2>>()
 
     // \n - NormalCompletion
-    lazyHandlers[Lookup.NORMAL_SELECT_CHAR.toString()] = DeclarativeInsertHandler2.LazyBuilder { builder ->
+    lazyHandlers[Lookup.NORMAL_SELECT_CHAR.toString()] = DeclarativeInsertHandler2.LazyBuilder(holdReadLock = true) { builder ->
         val argumentsStringToInsert = StringBuilder()
 
         val offset = editor.caretModel.offset
@@ -193,10 +193,12 @@ fun createNormalFunctionInsertHandler(
             run {
                 if (!functionName.isSpecial) {
                     val renderedName = functionName.render()
-                    val alreadyHasTickAtFront = chars[functionStartOffset] == '`'
+                    // it's possible, that nothing typedFuzzyName is empty, and cursor is located after the last symbol in the document,
+                    // which means: `functionStartOffset` and `offset` are outside `chars` bounds.
+                    val alreadyHasTickAtFront = chars.getOrNull(functionStartOffset) == '`'
 
                     if (renderedName.firstOrNull() == '`') {
-                        alreadyHasBackTickInTheEnd = chars[offset] == '`'
+                        alreadyHasBackTickInTheEnd = chars.getOrNull(offset) == '`'
 
                         // requires backticks
                         if (!alreadyHasTickAtFront) {

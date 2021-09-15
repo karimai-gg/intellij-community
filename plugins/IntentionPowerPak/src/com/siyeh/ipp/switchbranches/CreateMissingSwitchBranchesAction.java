@@ -48,7 +48,7 @@ public class CreateMissingSwitchBranchesAction extends PsiElementBaseIntentionAc
     List<String> missingValueNames = ContainerUtil.map(missingValues, v -> v.myName);
     List<PsiSwitchLabelStatementBase> addedLabels =
       CreateSwitchBranchesUtil.createMissingBranches(block, allValueNames, missingValueNames,
-                                                     label -> extractConstantNames(allValues, label));
+                                                     label -> extractConstantNames(allValues, label), false);
     CreateSwitchBranchesUtil.createTemplate(block, addedLabels);
   }
 
@@ -100,13 +100,13 @@ public class CreateMissingSwitchBranchesAction extends PsiElementBaseIntentionAc
     }
     if (expression instanceof PsiReferenceExpression) {
       PsiModifierListOwner target = ObjectUtils.tryCast(((PsiReferenceExpression)expression).resolve(), PsiModifierListOwner.class);
-      List<Value> emptyList = getValues(target, type);
-      if (emptyList != null) return emptyList;
+      List<Value> values = getValues(target, type);
+      if (values != null) return values;
     }
     else if (expression instanceof PsiMethodCallExpression) {
       PsiModifierListOwner target = ObjectUtils.tryCast(((PsiMethodCallExpression)expression).resolveMethod(), PsiModifierListOwner.class);
-      List<Value> emptyList = getValues(target, type);
-      if (emptyList != null) return emptyList;
+      List<Value> values = getValues(target, type);
+      if (values != null) return values;
     }
     return Collections.emptyList();
   }
